@@ -1984,7 +1984,7 @@
                 "IndNFe": false,
                 "IndNFCe": false,
                 "IndCTe": false,
-                "IndCTeOS": false,
+                "IndCTeOS": true,
                 "IndBPe": true,
                 "IndNF3e": false,
                 "IndNFCom": false,
