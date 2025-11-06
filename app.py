@@ -6,6 +6,7 @@ import os
 from dotenv import load_dotenv
 import json
 from pathlib import Path
+from pprint import pprint
 
 load_dotenv()
 # -----------------------
@@ -25,17 +26,10 @@ classificados_limpo = classificacao.fillna("Não compreendido pela LC 214/2025")
 certificado = r"C:\Users\gcont\OneDrive\Desktop\GCONT.pfx"
 senha = os.getenv("SENHA_CERTIFICADO")
 caminhos = Path(".")
-for arquivo in caminhos.glob("*"):
-    existe = True
-    if arquivo.is_file() and 'CclassTrib.txt' in arquivo.name:
-        existe = False
-        print ("arquivo CclassTrib.txt encontrado")
-if existe:
-    cclass = get_api_conformidade_facil(certificado,senha)
-    # -----------------------
-    # Transformação do Json em um txt contendo o Json
-    with open("CclassTrib.txt", "w", encoding="utf-8") as arquivo:
-        json.dump(cclass.json(),arquivo,indent=4,ensure_ascii=False)
+
+# cclass=get_api_conformidade_facil(certificado,senha)
+# cclass_content = cclass.json()
+# pprint(cclass_content[1]["CST"])
 
 
-#classificados_limpo[["Descrição","NCM","PRODUTO","Tributação"]].to_excel("classificados_limpo.xlsx")
+classificados_limpo[["Descrição","NCM","PRODUTO","Tributação","Perc de Red","Aliq Efetiva"]].to_excel("classificados_limpo.xlsx")
