@@ -13,14 +13,17 @@ load_dotenv()
 # Planilhas Excel
 excel = Path(r"C:\Users\gcont\OneDrive\Documentos\GitHub\Classificador_IA\Produtos.xlsx")
 lei_complementar = Path(r"C:\Users\gcont\OneDrive\Documentos\GitHub\Classificador_IA\Lei 214 NCMs - CBSs .xlsx")
-
+cst_cclass_excel = Path(r"C:\Users\gcont\OneDrive\Documentos\GitHub\Classificador_IA\CST_CclassTrib_Resumo.xlsx")
 # -----------------------
 # Criação e manipulação dos DataFrames
 excel_df = extract_data_excel(excel)
 lei_df = extract_data_excel(lei_complementar)
+cst_class_df = pd.read_excel(cst_cclass_excel, dtype={'CST':'string','cClassTrib':'string'})
+cst_class_df["CST"]=cst_class_df["CST"].astype(str)
+cst_class_df["cClassTrib"]=cst_class_df["cClassTrib"].astype(str)
 classificacao = pd.merge(excel_df,lei_df,"left",on="NCM")
 classificados_limpo = classificacao.fillna("Não compreendido pela LC 214/2025")
-
+print (cst_class_df.head(15))
 #------------------------
 # Caminho do certificado e senha para a busca na API do conformidade fácil
 certificado = r"C:\Users\gcont\OneDrive\Desktop\GCONT.pfx"
@@ -32,4 +35,4 @@ caminhos = Path(".")
 # pprint(cclass_content[1]["CST"])
 
 
-classificados_limpo[["Descrição","NCM","PRODUTO","Tributação","Perc de Red","Aliq Efetiva"]].to_excel("classificados_limpo.xlsx")
+#classificados_limpo[["Descrição","NCM","PRODUTO","Tributação","Perc de Red","Aliq Efetiva"]].to_excel("classificados_limpo.xlsx")
