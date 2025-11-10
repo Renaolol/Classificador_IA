@@ -16,4 +16,4 @@ agent_leitor = Agent(model=OpenAIResponses(id="gpt-4o-mini",name="Agente Leitor 
 
 pergunta = f"Extraia os dados deste arquivo: {lei_complementar_df}"
 
-agent_leitor.print_response(pergunta)
+agent_leitor.response(pergunta)
