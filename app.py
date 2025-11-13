@@ -60,18 +60,42 @@ def _keyword_match(description: str, keywords: List[str]) -> bool:
     return any(token in description for token in keywords)
 
 
+def _apply_fallback(df: pd.DataFrame, fallback_row: Optional[pd.Series]) -> pd.DataFrame:
+    if fallback_row is None or df.empty:
+        return df
+
+    if "CST" in df.columns:
+        needs_fallback = df["CST"].isna()
+    elif "cClassTrib" in df.columns:
+        needs_fallback = df["cClassTrib"].isna()
+    else:
+        needs_fallback = pd.Series(True, index=df.index)
+
+    if not needs_fallback.any():
+        return df
+
+    fallback_data = fallback_row.drop(labels=["allowed_ncmlist", "required_keywords"], errors="ignore")
+    for col, value in fallback_data.items():
+        if col not in df.columns:
+            df[col] = pd.NA
+        df.loc[needs_fallback, col] = value
+
+    return df
+
+
 def merge_by_prefix(
     items_df: pd.DataFrame,
     cst_prefix_df: pd.DataFrame,
     description_column: Optional[str] = None,
+    fallback_row: Optional[pd.Series] = None,
 ) -> pd.DataFrame:
     """Attach each item to the most specific CST prefix available."""
     if cst_prefix_df.empty:
-        return items_df.copy()
+        return _apply_fallback(items_df.copy(), fallback_row)
 
     lens = sorted(cst_prefix_df["prefix_len"].unique())
     if not lens:
-        return items_df.copy()
+        return _apply_fallback(items_df.copy(), fallback_row)
 
     if description_column is None:
         description_column = next((col for col in items_df.columns if "desc" in col.lower()), None)
@@ -100,7 +124,7 @@ def merge_by_prefix(
     )
 
     if expanded.empty:
-        return items_df.copy()
+        return _apply_fallback(items_df.copy(), fallback_row)
 
     expanded["prefix_len"] = expanded["ncm_prefix"].str.len()
 
@@ -132,7 +156,7 @@ def merge_by_prefix(
     merged = merged[merged["keyword_ok"]]
 
     if merged.empty:
-        return items_with_ids.drop(columns=["row_id"])
+        return _apply_fallback(items_with_ids.drop(columns=["row_id"]), fallback_row)
 
     best = (
         merged.sort_values(["row_id", "prefix_len", "priority"], ascending=[True, False, True])
@@ -140,7 +164,7 @@ def merge_by_prefix(
         .first()
     )
 
-    return (
+    result = (
         items_with_ids
         .merge(
             best.drop(
@@ -152,6 +176,25 @@ def merge_by_prefix(
         )
         .drop(columns=["row_id"])
     )
+
+    return _apply_fallback(result, fallback_row)
+
+
+def get_default_rule(cst_df: pd.DataFrame) -> Optional[pd.Series]:
+    if "DescricaoClassTrib" not in cst_df.columns:
+        return None
+
+    desc = cst_df["DescricaoClassTrib"].astype(str)
+    mask = desc.str.contains("tribut", case=False, na=False) & desc.str.contains("integral", case=False, na=False)
+    candidates = cst_df[mask]
+
+    if candidates.empty:
+        candidates = cst_df
+
+    if "priority" in candidates.columns:
+        candidates = candidates.sort_values("priority", ascending=True)
+
+    return candidates.iloc[0]
 
 
 def main() -> None:
@@ -165,17 +208,17 @@ def main() -> None:
 
     # Prepare CST mapping once
     cst_prefixes = build_cst_prefixes(cst_cclass_excel_df)
-
-    # Quick example
-    produto = {"descricao": ["CARNE MOIDA CONG.MARCON 1KG"], "NCM": ["0202.30.00"]}
-    df_teste = pd.DataFrame(produto)
-    df_teste["NCM"] = normalize_ncm(df_teste["NCM"])
-    df_teste_merged = merge_by_prefix(df_teste, cst_prefixes, description_column="descricao")
-    print(df_teste_merged)
+    default_rule = get_default_rule(cst_cclass_excel_df)
 
     # Apply merge to the full product list
     produtos_df["NCM"] = normalize_ncm(produtos_df["NCM"])
-    df_merged = merge_by_prefix(produtos_df, cst_prefixes)
+    description_col = "Descrição" if "Descrição" in produtos_df.columns else None
+    df_merged = merge_by_prefix(
+        produtos_df,
+        cst_prefixes,
+        description_column=description_col,
+        fallback_row=default_rule,
+    )
     df_merged.to_excel("df_merged.xlsx", index=False)
 
 
