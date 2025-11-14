@@ -8,6 +8,11 @@ from pprint import pprint
 from dotenv import load_dotenv
 import json
 from typing import List, Optional
+import psycopg2
+import streamlit as st
+from time import sleep
+import streamlit_authenticator as stauth
+from streamlit_authenticator import Hasher
 
 def extract_data_excel(data):
     """Extract data from excel"""
@@ -200,3 +205,177 @@ def get_default_rule(cst_df: pd.DataFrame) -> Optional[pd.Series]:
         candidates = candidates.sort_values("priority", ascending=True)
 
     return candidates.iloc[0]
+
+def conectar_bd():
+    return psycopg2.connect(host="localhost",
+                            database="cadastro_classificador",
+                            user="postgres",
+                            password="0176",
+                            port="5432")
+
+def consulta_geral():
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    query=("""
+            SELECT nome_empresa, id, username,senha
+            FROM cadastro_empresas
+            ORDER BY nome_empresa
+        """)
+    cursor.execute(query, )
+    return cursor.fetchall()
+
+def obter_empresa_codigo(user:str):
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    query=("""
+            SELECT id
+            FROM cadastro_empresas 
+            WHERE username = %s"""
+)
+    cursor.execute(query, (user,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return row[0] if row and row[0] else None
+
+def listar_planos() -> List[dict]:
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, nome, limite_itens
+        FROM planos
+        ORDER BY limite_itens
+        """
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [
+        {"id": row[0], "nome": row[1], "limite": row[2]}
+        for row in rows
+    ]
+
+def username_disponivel(username: str) -> bool:
+    if not username:
+        return False
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT 1
+        FROM cadastro_empresas
+        WHERE username = %s
+        """,
+        (username,),
+    )
+    exists = cursor.fetchone() is None
+    cursor.close()
+    conn.close()
+    return exists
+
+def criar_empresa(
+    nome_empresa: str,
+    cnpj: str,
+    email: str,
+    responsavel: str,
+    cpf_responsavel: str,
+    username: str,
+    senha: str,
+    plano_id: int,
+) -> Optional[int]:
+    hashed_password = Hasher().hash(senha)
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO cadastro_empresas (
+                nome_empresa, cnpj, e_mail, responsavel, cpf_responsavel,
+                username, senha, plano_id
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                nome_empresa,
+                cnpj,
+                email,
+                responsavel,
+                cpf_responsavel,
+                username,
+                hashed_password,
+                plano_id,
+            ),
+        )
+        empresa_id = cursor.fetchone()[0]
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+    return empresa_id
+
+def require_login():
+    auth = st.session_state.get("authentication_status", None)
+    if auth is True:
+        return
+    # Não logado ou falhou: manda para a página inicial (login) e para a execução
+    st.info("Área restrita. Faça login para continuar.")
+    try:
+        # Disponível em versões recentes do Streamlit
+        sleep(3)
+        st.switch_page("Login.py") # ou o nome exato da sua página principal
+    except Exception:
+        # Se sua versão não tiver switch_page, pelo menos interrompe
+        st.stop()
+
+def obter_status_plano(empresa_id: int) -> Optional[dict]:
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT p.nome, p.limite_itens, COALESCE(c.classificados, 0) AS usados
+        FROM cadastro_empresas e
+        JOIN planos p ON p.id = e.plano_id
+        LEFT JOIN consumo_planos c ON c.empresa_id = e.id
+        WHERE e.id = %s
+        """,
+        (empresa_id,),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if not row:
+        return None
+    nome, limite, usados = row
+    return {
+        "plano": nome,
+        "limite": limite,
+        "usados": usados,
+        "restantes": max(limite - usados, 0),
+    }
+
+def registrar_classificacao(empresa_id: int, quantidade: int) -> int:
+    if quantidade <= 0:
+        return 0
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO consumo_planos (empresa_id, classificados)
+        VALUES (%s, %s)
+        ON CONFLICT (empresa_id)
+        DO UPDATE SET classificados = consumo_planos.classificados + EXCLUDED.classificados,
+                      atualizado_em = NOW()
+        RETURNING classificados
+        """,
+        (empresa_id, quantidade),
+    )
+    total = cursor.fetchone()[0]
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return total
