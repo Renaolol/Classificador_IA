@@ -12,7 +12,6 @@ import psycopg2
 import streamlit as st
 from time import sleep
 import streamlit_authenticator as stauth
-from streamlit_authenticator import Hasher
 from functools import lru_cache
 
 def extract_data_excel(data):
@@ -30,6 +29,14 @@ def get_api_conformidade_facil(certificado,senha):
     response = session.get(url)
     #Utilizado pprint para uma visualização encadeada
     return response
+
+def _hash_password(password: str) -> str:
+    """Gera hash compatível com streamlit-authenticator, independente da versão."""
+    try:
+        return stauth.Hasher([password]).generate()[0]
+    except Exception:
+        hasher = getattr(stauth, "Hasher")()
+        return hasher.hash(password)
 
 def normalize_ncm(series: pd.Series, length: int = 8) -> pd.Series:
     """Keep only digits and left-pad with zeros."""
@@ -297,7 +304,7 @@ def criar_empresa(
     senha: str,
     plano_id: int,
 ) -> Optional[int]:
-    hashed_password = Hasher().hash(senha)
+    hashed_password = _hash_password(senha)
     conn = conectar_bd()
     cursor = conn.cursor()
     try:
