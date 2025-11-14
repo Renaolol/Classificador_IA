@@ -208,11 +208,23 @@ def get_default_rule(cst_df: pd.DataFrame) -> Optional[pd.Series]:
     return candidates.iloc[0]
 
 def conectar_bd():
-    return psycopg2.connect(host="localhost",
-                            database="cadastro_classificador",
-                            user="postgres",
-                            password="0176",
-                            port="5432")
+    load_dotenv()
+    database_url = os.getenv("DATABASE_URL")
+    sslmode_env = os.getenv("DB_SSLMODE")
+    if database_url:
+        sslmode = sslmode_env or ("require" if "supabase" in database_url else None)
+        if sslmode and "sslmode" not in database_url.lower():
+            return psycopg2.connect(database_url, sslmode=sslmode)
+        return psycopg2.connect(database_url)
+
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        database=os.getenv("DB_NAME", "cadastro_classificador"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD", "0176"),
+        port=os.getenv("DB_PORT", "5432"),
+        sslmode=sslmode_env,
+    )
 
 def consulta_geral():
     conn = conectar_bd()
@@ -338,7 +350,7 @@ def obter_status_plano(empresa_id: int) -> Optional[dict]:
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT p.nome, p.limite_itens, COALESCE(c.classificados, 0) AS usados
+        SELECT p.nome, p.limite_itens, COALESCE(c.classificados::numeric, 0) AS usados
         FROM cadastro_empresas e
         JOIN planos p ON p.id = e.plano_id
         LEFT JOIN consumo_planos c ON c.empresa_id = e.id
@@ -355,9 +367,9 @@ def obter_status_plano(empresa_id: int) -> Optional[dict]:
     pendencias = listar_creditos_limite(empresa_id, somente_pendentes=True)
     return {
         "plano": nome,
-        "limite": limite,
-        "usados": usados,
-        "restantes": max(limite - usados, 0),
+        "limite": int(limite),
+        "usados": int(usados),
+        "restantes": max(int(limite) - int(usados), 0),
         "pendencias": pendencias,
     }
 
@@ -371,7 +383,7 @@ def registrar_classificacao(empresa_id: int, quantidade: int) -> int:
         INSERT INTO consumo_planos (empresa_id, classificados)
         VALUES (%s, %s)
         ON CONFLICT (empresa_id)
-        DO UPDATE SET classificados = consumo_planos.classificados + EXCLUDED.classificados,
+        DO UPDATE SET classificados = consumo_planos.classificados::numeric + EXCLUDED.classificados,
                       atualizado_em = NOW()
         RETURNING classificados
         """,
@@ -461,7 +473,7 @@ def listar_creditos_limite(empresa_id: int, somente_pendentes: bool = True) -> L
     """
     params = [empresa_id]
     if somente_pendentes:
-        query += " AND pago = FALSE"
+        query += " AND pago::boolean = FALSE"
     query += " ORDER BY criado_em DESC"
     cursor.execute(query, params)
     rows = cursor.fetchall()
@@ -488,7 +500,7 @@ def confirmar_pagamento_credito(empresa_id: int, credito_id: int) -> Optional[in
             """
             UPDATE creditos_limite
             SET pago = TRUE
-            WHERE id = %s AND empresa_id = %s AND pago = FALSE
+            WHERE id = %s AND empresa_id = %s AND pago::boolean = FALSE
             RETURNING quantidade
             """,
             (credito_id, empresa_id),
