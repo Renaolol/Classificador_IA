@@ -13,6 +13,7 @@ import streamlit as st
 from time import sleep
 import streamlit_authenticator as stauth
 from streamlit_authenticator import Hasher
+from functools import lru_cache
 
 def extract_data_excel(data):
     """Extract data from excel"""
@@ -351,11 +352,13 @@ def obter_status_plano(empresa_id: int) -> Optional[dict]:
     if not row:
         return None
     nome, limite, usados = row
+    pendencias = listar_creditos_limite(empresa_id, somente_pendentes=True)
     return {
         "plano": nome,
         "limite": limite,
         "usados": usados,
         "restantes": max(limite - usados, 0),
+        "pendencias": pendencias,
     }
 
 def registrar_classificacao(empresa_id: int, quantidade: int) -> int:
@@ -379,3 +382,128 @@ def registrar_classificacao(empresa_id: int, quantidade: int) -> int:
     cursor.close()
     conn.close()
     return total
+
+def adicionar_limite_extra(empresa_id: int, quantidade: int) -> Optional[int]:
+    if quantidade <= 0:
+        return None
+
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO consumo_planos (empresa_id, classificados)
+            VALUES (%s, 0)
+            ON CONFLICT (empresa_id) DO NOTHING
+            """,
+            (empresa_id,),
+        )
+        cursor.execute(
+            """
+            UPDATE consumo_planos
+            SET classificados = GREATEST(classificados - %s, 0),
+                atualizado_em = NOW()
+            WHERE empresa_id = %s
+            RETURNING classificados
+            """,
+            (quantidade, empresa_id),
+        )
+        row = cursor.fetchone()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+    return row[0] if row else None
+
+def criar_credito_limite(
+    empresa_id: int,
+    quantidade: int,
+    tipo: str,
+    valor_total: float,
+    descricao: Optional[str] = None,
+) -> Optional[int]:
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO creditos_limite (
+                empresa_id, tipo, quantidade, valor_total, descricao
+            )
+            VALUES (
+                %s, %s, %s, %s, %s
+            )
+            RETURNING id
+            """,
+            (empresa_id, tipo, quantidade, valor_total, descricao),
+        )
+        credito_id = cursor.fetchone()[0]
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+    return credito_id
+
+def listar_creditos_limite(empresa_id: int, somente_pendentes: bool = True) -> List[dict]:
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    query = """
+        SELECT id, tipo, quantidade, valor_total, pago, criado_em, descricao
+        FROM creditos_limite
+        WHERE empresa_id = %s
+    """
+    params = [empresa_id]
+    if somente_pendentes:
+        query += " AND pago = FALSE"
+    query += " ORDER BY criado_em DESC"
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [
+        {
+            "id": row[0],
+            "tipo": row[1],
+            "quantidade": row[2],
+            "valor_total": row[3],
+            "pago": row[4],
+            "criado_em": row[5],
+            "descricao": row[6],
+        }
+        for row in rows
+    ]
+
+def confirmar_pagamento_credito(empresa_id: int, credito_id: int) -> Optional[int]:
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            UPDATE creditos_limite
+            SET pago = TRUE
+            WHERE id = %s AND empresa_id = %s AND pago = FALSE
+            RETURNING quantidade
+            """,
+            (credito_id, empresa_id),
+        )
+        row = cursor.fetchone()
+        if not row:
+            conn.rollback()
+            return None
+        quantidade = row[0]
+        adicionar_limite_extra(empresa_id, quantidade)
+        conn.commit()
+        return quantidade
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()

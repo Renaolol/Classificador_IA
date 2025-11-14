@@ -51,12 +51,12 @@ def main():
         return
 
     if mode == "login":
-        if st.button("Voltar", use_container_width=True):
+        if st.button("Voltar"):
             st.session_state["view_mode"] = None
             st.rerun()
         login_form(authenticator)
     elif mode == "cadastro":
-        if st.button("Voltar", use_container_width=True):
+        if st.button("Voltar"):
             st.session_state["view_mode"] = None
             st.rerun()
         render_cadastro()
