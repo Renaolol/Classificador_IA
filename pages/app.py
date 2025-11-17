@@ -16,7 +16,7 @@ database_dir = base_dir / "database"
 modelo = database_dir / "Lei 214 NCMs - CBSs .xlsx"
 st.download_button(
     label="Baixar planilha Modelo Excel",
-    data=BytesIO(modelo),
+    data=modelo,
     file_name="modelo.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 )
