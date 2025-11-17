@@ -12,10 +12,7 @@ import psycopg2
 import streamlit as st
 from time import sleep
 import streamlit_authenticator as stauth
-try:
-    from streamlit_authenticator.utilities.hasher import Hasher as SAHasher
-except ImportError:
-    SAHasher = None
+import hashlib
 
 def extract_data_excel(data):
     """Extract data from excel"""
@@ -35,12 +32,13 @@ def get_api_conformidade_facil(certificado,senha):
 
 def _hash_password(password: str) -> str:
     """Hash compatível com streamlit-authenticator."""
-    if SAHasher:
-        return SAHasher.hash_passwords([password])[0]
-
     legacy_hasher = getattr(stauth, "Hasher", None)
     if legacy_hasher:
-        return legacy_hasher([password]).generate()[0]
+        try:
+            return legacy_hasher([password]).generate()[0]
+        except Exception:
+            hasher = legacy_hasher()
+            return hasher.hash(password)
 
     raise RuntimeError("Hasher não está disponível na versão atual do streamlit_authenticator.")
 
