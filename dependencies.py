@@ -215,6 +215,13 @@ def get_default_rule(cst_df: pd.DataFrame) -> Optional[pd.Series]:
     return candidates.iloc[0]
 
 def conectar_bd():
+    # Prefer credentials provided via Streamlit secrets.
+    if hasattr(st, "secrets") and "db" in st.secrets:
+        params = dict(st.secrets["db"])
+        params.setdefault("sslmode", "require")
+        params.setdefault("options", "-c search_path=public")
+        return psycopg2.connect(**params)
+
     load_dotenv()
     database_url = os.getenv("DATABASE_URL")
     sslmode_env = os.getenv("DB_SSLMODE")
