@@ -7,6 +7,7 @@ from dependencies import (
     username_disponivel,
     criar_empresa,
 )
+from validate_docbr import CNPJ, CPF
 from config_pag import set_background, get_logo, get_ico
 
 #st.set_page_config(layout="wide", page_icon=get_ico())
@@ -126,17 +127,23 @@ def render_cadastro():
     responsavel = responsavel.strip()
     cpf_responsavel = "".join(filter(str.isdigit, cpf_responsavel))
     username = username.strip().lower()
+    cnpj_validador = CNPJ()
+    cpf_validador = CPF()
 
     if not nome_empresa:
         erros.append("Informe o nome da empresa.")
     if len(cnpj) != 14:
-        erros.append("Informe um CNPJ válido com 14 dígitos.")
+        erros.append("Informe um CNPJ com 14 dígitos.")
+    if cnpj_validador.validate(cnpj) is not True:
+        erros.append("Informe um CNPJ válido")
     if not email:
         erros.append("Informe um e-mail para contato.")
     if not responsavel:
         erros.append("Informe o responsável.")
     if len(cpf_responsavel) != 11:
-        erros.append("Informe um CPF válido com 11 dígitos.")
+        erros.append("Informe um CPF com 11 dígitos.")
+    if cpf_validador.validate(cpf_responsavel) is not True:
+        erros.append("Informe um CPF valido")
     if not username:
         erros.append("Informe o usuário.")
     if len(senha) < 6:
