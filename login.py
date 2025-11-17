@@ -63,7 +63,7 @@ def main():
 
 def login_form(authenticator):
     # Renderiza o formulário de login
-    authenticator.login(location='main', key='Login')
+    authenticator.login('Login', 'main')
 
     # Leia o estado atualizado pelo streamlit-authenticator
     authentication_status = st.session_state.get('authentication_status')
@@ -75,7 +75,7 @@ def login_form(authenticator):
         # carrega e guarda o código da empresa do usuário logado
         emp = obter_empresa_codigo(username)
         st.session_state['empresa_codigo'] = emp
-        authenticator.logout(location='main', key='Logout')
+        authenticator.logout('Logout', 'main')
         st.title("Login efetuado com sucesso!")
         st.caption(f"Bem-vindo {name or '—'}")
     elif authentication_status is False:
