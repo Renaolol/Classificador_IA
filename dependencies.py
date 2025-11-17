@@ -216,8 +216,14 @@ def get_default_rule(cst_df: pd.DataFrame) -> Optional[pd.Series]:
 
 def conectar_bd():
     # Prefer credentials provided via Streamlit secrets.
-    if hasattr(st, "secrets") and "db" in st.secrets:
-        params = dict(st.secrets["db"])
+    secrets_db = None
+    if hasattr(st, "secrets"):
+        try:
+            secrets_db = st.secrets.get("db", None)
+        except FileNotFoundError:
+            secrets_db = None
+    if secrets_db:
+        params = dict(secrets_db)
         params.setdefault("sslmode", "require")
         params.setdefault("options", "-c search_path=public")
         return psycopg2.connect(**params)
