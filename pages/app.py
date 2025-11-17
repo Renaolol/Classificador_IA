@@ -11,7 +11,15 @@ st.set_page_config("Classificador",layout="wide")
 st.title("Classificador Tributário de Produtos - Gcont")
 require_login()
 load_dotenv()
-
+base_dir = Path(__file__).resolve().parents[1]
+database_dir = base_dir / "database"
+modelo = database_dir / "Lei 214 NCMs - CBSs .xlsx"
+st.download_button(
+    label="Baixar planilha Modelo Excel",
+    data=BytesIO(modelo),
+    file_name="modelo.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+)
 empresa_id = st.session_state.get("empresa_codigo")
 if not empresa_id:
     st.error("Não foi possível identificar sua empresa. Faça login novamente.")
@@ -80,8 +88,6 @@ if produtos:
                 "Atualize o plano ou envie um arquivo menor."
             )
             st.stop()
-        base_dir = Path(__file__).resolve().parents[1]
-        database_dir = base_dir / "database"
         lei_complementar = database_dir / "Lei 214 NCMs - CBSs .xlsx"
         cst_cclass_excel = database_dir / "CST_cclass.xlsx"
         lei_df = extract_data_excel(lei_complementar)
