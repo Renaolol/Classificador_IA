@@ -50,7 +50,16 @@ if status_plano["restantes"] <= 0:
     st.error("Seu saldo de itens acabou. Recarregue o plano ou adicione limite extra na tela de planos.")
     st.stop()
 
-DISPLAY_COLUMNS = ["Código","Descrição_x","NCM_x","CST","cClassTrib","DescricaoClassTrib","pRedIBS","pRedCBS"]
+DISPLAY_COLUMNS = [
+    "Código",
+    "Descrição_x",
+    "NCM_x",
+    "CST",
+    "cClassTrib",
+    "DescricaoClassTrib",
+    "pRedIBS",
+    "pRedCBS",
+]
 
 def _reset_upload_state():
     for key in ("last_upload_key", "last_df", "last_excel", "last_status_msg"):
@@ -115,7 +124,14 @@ if produtos:
             f"{total_atual}/{status_plano['limite']}."
         )
         st.success(success_msg)
-        df_display = df_merged[DISPLAY_COLUMNS]
+        available_columns = [col for col in DISPLAY_COLUMNS if col in df_merged.columns]
+        missing_columns = [col for col in DISPLAY_COLUMNS if col not in df_merged.columns]
+        if missing_columns:
+            st.info(
+                "As colunas seguintes não estavam presentes na planilha e foram ignoradas: "
+                + ", ".join(missing_columns)
+            )
+        df_display = df_merged[available_columns] if available_columns else df_merged
         buffer = BytesIO()
         df_display.to_excel(buffer, index=False)
         buffer.seek(0)
