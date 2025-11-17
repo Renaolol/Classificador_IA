@@ -51,7 +51,7 @@ if status_plano["restantes"] <= 0:
     st.stop()
 
 DISPLAY_COLUMNS = [
-    "Código",
+    "Código_x",
     "Descrição_x",
     "NCM_x",
     "CST",
