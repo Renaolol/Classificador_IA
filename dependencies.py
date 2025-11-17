@@ -12,6 +12,7 @@ import psycopg2
 import streamlit as st
 from time import sleep
 import streamlit_authenticator as stauth
+import hashlib
 
 def extract_data_excel(data):
     """Extract data from excel"""
@@ -30,15 +31,15 @@ def get_api_conformidade_facil(certificado,senha):
     return response
 
 def _hash_password(password: str) -> str:
-    """Gera hash compatível com streamlit-authenticator, independente da versão."""
+    """Gera hash compatível mesmo sem Hasher na lib."""
     hasher_cls = getattr(stauth, "Hasher", None)
-    if hasher_cls is None:
-        raise RuntimeError("Hasher não está disponível na versão atual do streamlit_authenticator.")
-    try:
-        return hasher_cls([password]).generate()[0]
-    except Exception:
-        hasher = hasher_cls()
-        return hasher.hash(password)
+    if hasher_cls:
+        try:
+            return hasher_cls([password]).generate()[0]
+        except Exception:
+            hasher = hasher_cls()
+            return hasher.hash(password)
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def normalize_ncm(series: pd.Series, length: int = 8) -> pd.Series:
     """Keep only digits and left-pad with zeros."""
