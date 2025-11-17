@@ -50,7 +50,7 @@ if status_plano["restantes"] <= 0:
     st.error("Seu saldo de itens acabou. Recarregue o plano ou adicione limite extra na tela de planos.")
     st.stop()
 
-DISPLAY_COLUMNS = ["Descrição_x","NCM_x","CST","cClassTrib","DescricaoClassTrib","pRedIBS","pRedCBS"]
+DISPLAY_COLUMNS = ["Código","Descrição_x","NCM_x","CST","cClassTrib","DescricaoClassTrib","pRedIBS","pRedCBS"]
 
 def _reset_upload_state():
     for key in ("last_upload_key", "last_df", "last_excel", "last_status_msg"):
