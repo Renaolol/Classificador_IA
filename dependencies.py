@@ -12,6 +12,10 @@ import psycopg2
 import streamlit as st
 from time import sleep
 import streamlit_authenticator as stauth
+try:
+    from streamlit_authenticator.utilities.hasher import Hasher as SAHasher
+except ImportError:
+    SAHasher = None
 import hashlib
 
 def extract_data_excel(data):
@@ -32,13 +36,16 @@ def get_api_conformidade_facil(certificado,senha):
 
 def _hash_password(password: str) -> str:
     """Gera hash compatível mesmo sem Hasher na lib."""
-    hasher_cls = getattr(stauth, "Hasher", None)
+    hasher_cls = SAHasher or getattr(stauth, "Hasher", None)
     if hasher_cls:
         try:
             return hasher_cls([password]).generate()[0]
         except Exception:
-            hasher = hasher_cls()
-            return hasher.hash(password)
+            try:
+                hasher = hasher_cls()
+                return hasher.hash(password)
+            except Exception:
+                pass
     return hashlib.sha256(password.encode()).hexdigest()
 
 def normalize_ncm(series: pd.Series, length: int = 8) -> pd.Series:
@@ -254,7 +261,7 @@ def obter_empresa_codigo(user:str):
     cursor = conn.cursor()
     query=("""
             SELECT id
-            FROM cadastro_empresas 
+            FROM public.cadastro_empresas 
             WHERE username = %s"""
 )
     cursor.execute(query, (user,))
@@ -269,7 +276,7 @@ def listar_planos() -> List[dict]:
     cursor.execute(
         """
         SELECT id, nome, limite_itens
-        FROM planos
+        FROM public.planos
         ORDER BY limite_itens
         """
     )
@@ -289,7 +296,7 @@ def username_disponivel(username: str) -> bool:
     cursor.execute(
         """
         SELECT 1
-        FROM cadastro_empresas
+        FROM public.cadastro_empresas
         WHERE username = %s
         """,
         (username,),
@@ -315,7 +322,7 @@ def criar_empresa(
     try:
         cursor.execute(
             """
-            INSERT INTO cadastro_empresas (
+            INSERT INTO public.cadastro_empresas (
                 nome_empresa, cnpj, e_mail, responsavel, cpf_responsavel,
                 username, senha, plano_id
             )
@@ -363,9 +370,9 @@ def obter_status_plano(empresa_id: int) -> Optional[dict]:
     cursor.execute(
         """
         SELECT p.nome, p.limite_itens, COALESCE(c.classificados::numeric, 0) AS usados
-        FROM cadastro_empresas e
-        JOIN planos p ON p.id = e.plano_id
-        LEFT JOIN consumo_planos c ON c.empresa_id = e.id
+        FROM public.cadastro_empresas e
+        JOIN public.planos p ON p.id = e.plano_id
+        LEFT JOIN public.consumo_planos c ON c.empresa_id = e.id
         WHERE e.id = %s
         """,
         (empresa_id,),
@@ -392,10 +399,10 @@ def registrar_classificacao(empresa_id: int, quantidade: int) -> int:
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO consumo_planos (empresa_id, classificados)
+        INSERT INTO public.consumo_planos (empresa_id, classificados)
         VALUES (%s, %s)
         ON CONFLICT (empresa_id)
-        DO UPDATE SET classificados = consumo_planos.classificados::numeric + EXCLUDED.classificados,
+        DO UPDATE SET classificados = public.consumo_planos.classificados::numeric + EXCLUDED.classificados,
                       atualizado_em = NOW()
         RETURNING classificados
         """,
@@ -416,7 +423,7 @@ def adicionar_limite_extra(empresa_id: int, quantidade: int) -> Optional[int]:
     try:
         cursor.execute(
             """
-            INSERT INTO consumo_planos (empresa_id, classificados)
+        INSERT INTO public.consumo_planos (empresa_id, classificados)
             VALUES (%s, 0)
             ON CONFLICT (empresa_id) DO NOTHING
             """,
@@ -424,7 +431,7 @@ def adicionar_limite_extra(empresa_id: int, quantidade: int) -> Optional[int]:
         )
         cursor.execute(
             """
-            UPDATE consumo_planos
+            UPDATE public.consumo_planos
             SET classificados = GREATEST(classificados - %s, 0),
                 atualizado_em = NOW()
             WHERE empresa_id = %s
@@ -455,7 +462,7 @@ def criar_credito_limite(
     try:
         cursor.execute(
             """
-            INSERT INTO creditos_limite (
+            INSERT INTO public.creditos_limite (
                 empresa_id, tipo, quantidade, valor_total, descricao
             )
             VALUES (
@@ -480,7 +487,7 @@ def listar_creditos_limite(empresa_id: int, somente_pendentes: bool = True) -> L
     cursor = conn.cursor()
     query = """
         SELECT id, tipo, quantidade, valor_total, pago, criado_em, descricao
-        FROM creditos_limite
+        FROM public.creditos_limite
         WHERE empresa_id = %s
     """
     params = [empresa_id]
@@ -510,7 +517,7 @@ def confirmar_pagamento_credito(empresa_id: int, credito_id: int) -> Optional[in
     try:
         cursor.execute(
             """
-            UPDATE creditos_limite
+            UPDATE public.creditos_limite
             SET pago = TRUE
             WHERE id = %s AND empresa_id = %s AND pago::boolean = FALSE
             RETURNING quantidade
