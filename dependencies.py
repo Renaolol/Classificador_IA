@@ -231,6 +231,7 @@ def conectar_bd():
         password=os.getenv("DB_PASSWORD", "0176"),
         port=os.getenv("DB_PORT", "5432"),
         sslmode=sslmode_env,
+        options='-c search_path=public'
     )
 
 def consulta_geral():
