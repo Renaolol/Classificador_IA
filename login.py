@@ -63,7 +63,15 @@ def main():
 
 def login_form(authenticator):
     # Renderiza o formulário de login
-    authenticator.login('Login', 'main')
+    authenticator.login(
+        fields={
+            "form_name": "Login",
+            "username": "Usuário",
+            "password": "Senha",
+            "submit": "Entrar",
+        },
+        location='main',
+    )
 
     # Leia o estado atualizado pelo streamlit-authenticator
     authentication_status = st.session_state.get('authentication_status')
