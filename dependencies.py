@@ -231,7 +231,6 @@ def conectar_bd():
         password=os.getenv("DB_PASSWORD", "0176"),
         port=os.getenv("DB_PORT", "5432"),
         sslmode=sslmode_env,
-        options='-c search_path=public'
     )
 
 def consulta_geral():
@@ -239,7 +238,7 @@ def consulta_geral():
     cursor = conn.cursor()
     query=("""
             SELECT nome_empresa, id, username,senha
-            FROM cadastro_empresas
+            FROM public.cadastro_empresas
             ORDER BY nome_empresa
         """)
     cursor.execute(query, )
@@ -250,7 +249,7 @@ def obter_empresa_codigo(user:str):
     cursor = conn.cursor()
     query=("""
             SELECT id
-            FROM cadastro_empresas 
+            FROM public.cadastro_empresas 
             WHERE username = %s"""
 )
     cursor.execute(query, (user,))
@@ -265,7 +264,7 @@ def listar_planos() -> List[dict]:
     cursor.execute(
         """
         SELECT id, nome, limite_itens
-        FROM planos
+        FROM public.planos
         ORDER BY limite_itens
         """
     )
@@ -285,7 +284,7 @@ def username_disponivel(username: str) -> bool:
     cursor.execute(
         """
         SELECT 1
-        FROM cadastro_empresas
+        FROM public.cadastro_empresas
         WHERE username = %s
         """,
         (username,),
@@ -311,7 +310,7 @@ def criar_empresa(
     try:
         cursor.execute(
             """
-            INSERT INTO cadastro_empresas (
+            INSERT INTO public.cadastro_empresas (
                 nome_empresa, cnpj, e_mail, responsavel, cpf_responsavel,
                 username, senha, plano_id
             )
@@ -359,7 +358,7 @@ def obter_status_plano(empresa_id: int) -> Optional[dict]:
     cursor.execute(
         """
         SELECT p.nome, p.limite_itens, COALESCE(c.classificados::numeric, 0) AS usados
-        FROM cadastro_empresas e
+        FROM public.cadastro_empresas e
         JOIN planos p ON p.id = e.plano_id
         LEFT JOIN consumo_planos c ON c.empresa_id = e.id
         WHERE e.id = %s
@@ -388,7 +387,7 @@ def registrar_classificacao(empresa_id: int, quantidade: int) -> int:
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO consumo_planos (empresa_id, classificados)
+        INSERT INTO public.consumo_planos (empresa_id, classificados)
         VALUES (%s, %s)
         ON CONFLICT (empresa_id)
         DO UPDATE SET classificados = consumo_planos.classificados::numeric + EXCLUDED.classificados,
@@ -412,7 +411,7 @@ def adicionar_limite_extra(empresa_id: int, quantidade: int) -> Optional[int]:
     try:
         cursor.execute(
             """
-            INSERT INTO consumo_planos (empresa_id, classificados)
+            INSERT INTO public.consumo_planos (empresa_id, classificados)
             VALUES (%s, 0)
             ON CONFLICT (empresa_id) DO NOTHING
             """,
@@ -420,7 +419,7 @@ def adicionar_limite_extra(empresa_id: int, quantidade: int) -> Optional[int]:
         )
         cursor.execute(
             """
-            UPDATE consumo_planos
+            UPDATE public.consumo_planos
             SET classificados = GREATEST(classificados - %s, 0),
                 atualizado_em = NOW()
             WHERE empresa_id = %s
@@ -451,7 +450,7 @@ def criar_credito_limite(
     try:
         cursor.execute(
             """
-            INSERT INTO creditos_limite (
+            INSERT INTO public.creditos_limite (
                 empresa_id, tipo, quantidade, valor_total, descricao
             )
             VALUES (
@@ -476,7 +475,7 @@ def listar_creditos_limite(empresa_id: int, somente_pendentes: bool = True) -> L
     cursor = conn.cursor()
     query = """
         SELECT id, tipo, quantidade, valor_total, pago, criado_em, descricao
-        FROM creditos_limite
+        FROM public.creditos_limite
         WHERE empresa_id = %s
     """
     params = [empresa_id]
@@ -506,7 +505,7 @@ def confirmar_pagamento_credito(empresa_id: int, credito_id: int) -> Optional[in
     try:
         cursor.execute(
             """
-            UPDATE creditos_limite
+            UPDATE public.creditos_limite
             SET pago = TRUE
             WHERE id = %s AND empresa_id = %s AND pago::boolean = FALSE
             RETURNING quantidade
