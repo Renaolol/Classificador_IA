@@ -16,7 +16,6 @@ try:
     from streamlit_authenticator.utilities.hasher import Hasher as SAHasher
 except ImportError:
     SAHasher = None
-import hashlib
 
 def extract_data_excel(data):
     """Extract data from excel"""
@@ -35,18 +34,15 @@ def get_api_conformidade_facil(certificado,senha):
     return response
 
 def _hash_password(password: str) -> str:
-    """Gera hash compatível mesmo sem Hasher na lib."""
-    hasher_cls = SAHasher or getattr(stauth, "Hasher", None)
-    if hasher_cls:
-        try:
-            return hasher_cls([password]).generate()[0]
-        except Exception:
-            try:
-                hasher = hasher_cls()
-                return hasher.hash(password)
-            except Exception:
-                pass
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash compatível com streamlit-authenticator."""
+    if SAHasher:
+        return SAHasher.hash_passwords([password])[0]
+
+    legacy_hasher = getattr(stauth, "Hasher", None)
+    if legacy_hasher:
+        return legacy_hasher([password]).generate()[0]
+
+    raise RuntimeError("Hasher não está disponível na versão atual do streamlit_authenticator.")
 
 def normalize_ncm(series: pd.Series, length: int = 8) -> pd.Series:
     """Keep only digits and left-pad with zeros."""
