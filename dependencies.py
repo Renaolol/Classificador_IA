@@ -241,8 +241,8 @@ def consulta_geral():
     cursor = conn.cursor()
     query=("""
             SELECT nome_empresa, id, username,senha
-            FROM cadastro_empresas
-            ORDER BY nome_empresa
+            FROM public.cadastro_empresas
+            ORDER BY nome_empresa;
         """)
     cursor.execute(query, )
     return cursor.fetchall()
