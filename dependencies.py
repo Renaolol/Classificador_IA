@@ -215,55 +215,11 @@ def get_default_rule(cst_df: pd.DataFrame) -> Optional[pd.Series]:
     return candidates.iloc[0]
 
 def conectar_bd():
-    # Prefer credentials provided via Streamlit secrets.
-    secrets_db = None
-    if hasattr(st, "secrets"):
-        try:
-            secrets_db = st.secrets.get("db", None)
-        except FileNotFoundError:
-            secrets_db = None
-    if secrets_db:
-        params = dict(secrets_db)
-        params.setdefault("sslmode", "require")
-        params.setdefault("options", "-c search_path=public")
-        conn = psycopg2.connect(**params)
-        _log_tables(conn)
-        return conn
-
     load_dotenv()
     database_url = os.getenv("DATABASE_URL")
     sslmode_env = os.getenv("DB_SSLMODE")
     if database_url:
         sslmode = sslmode_env or ("require" if "supabase" in database_url else None)
-        connect_args = {"dsn": database_url}
-        if sslmode and "sslmode" not in database_url.lower():
-            connect_args["sslmode"] = sslmode
-        connect_args["options"] = "-c search_path=public"
-        conn = psycopg2.connect(**connect_args)
-        _log_tables(conn)
-        return conn
-
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        database=os.getenv("DB_NAME", "Classificador_produtos"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD", "0176"),
-        port=os.getenv("DB_PORT", "5432"),
-        sslmode=sslmode_env,
-        options="-c search_path=public",
-    )
-    _log_tables(conn)
-    return conn
-
-def _log_tables(conn):
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            SELECT schemaname, tablename
-            FROM pg_tables
-            WHERE schemaname NOT IN ('pg_catalog','information_schema')
-            ORDER BY schemaname, tablename
-        """)
-        print("Tabelas visíveis:", cursor.fetchall())
 
 def consulta_geral():
     conn = conectar_bd()
