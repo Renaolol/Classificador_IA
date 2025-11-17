@@ -220,6 +220,20 @@ def conectar_bd():
     sslmode_env = os.getenv("DB_SSLMODE")
     if database_url:
         sslmode = sslmode_env or ("require" if "supabase" in database_url else None)
+        connect_args = {"dsn": database_url}
+        if sslmode and "sslmode" not in database_url.lower():
+            connect_args["sslmode"] = sslmode
+        connect_args["options"] = "-c search_path=public"
+        return psycopg2.connect(**connect_args)
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        database=os.getenv("DB_NAME", "Classificador_produtos"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD", "0176"),
+        port=os.getenv("DB_PORT", "5432"),
+        sslmode=sslmode_env,
+        options="-c search_path=public",
+    )
 
 def consulta_geral():
     conn = conectar_bd()
