@@ -110,7 +110,6 @@ def render_cadastro():
         responsavel = st.text_input("Responsável")
         cpf_responsavel = st.text_input("CPF do responsável (somente números)")
         username = st.text_input("Usuário para login",help="Apenas letras minusculas e sem acento")
-        username.lower()
         col1, col2 = st.columns(2)
         senha = col1.text_input("Senha", type="password")
         confirma = col2.text_input("Confirme a senha", type="password")
@@ -126,7 +125,7 @@ def render_cadastro():
     email = email.strip()
     responsavel = responsavel.strip()
     cpf_responsavel = "".join(filter(str.isdigit, cpf_responsavel))
-    username = username.strip()
+    username = username.strip().lower()
 
     if not nome_empresa:
         erros.append("Informe o nome da empresa.")
