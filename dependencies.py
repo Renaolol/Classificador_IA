@@ -12,7 +12,6 @@ import psycopg2
 import streamlit as st
 from time import sleep
 import streamlit_authenticator as stauth
-from functools import lru_cache
 
 def extract_data_excel(data):
     """Extract data from excel"""
@@ -32,10 +31,13 @@ def get_api_conformidade_facil(certificado,senha):
 
 def _hash_password(password: str) -> str:
     """Gera hash compatível com streamlit-authenticator, independente da versão."""
+    hasher_cls = getattr(stauth, "Hasher", None)
+    if hasher_cls is None:
+        raise RuntimeError("Hasher não está disponível na versão atual do streamlit_authenticator.")
     try:
-        return stauth.Hasher([password]).generate()[0]
+        return hasher_cls([password]).generate()[0]
     except Exception:
-        hasher = getattr(stauth, "Hasher")()
+        hasher = hasher_cls()
         return hasher.hash(password)
 
 def normalize_ncm(series: pd.Series, length: int = 8) -> pd.Series:
