@@ -80,8 +80,10 @@ if produtos:
                 "Atualize o plano ou envie um arquivo menor."
             )
             st.stop()
-        lei_complementar = Path(r"C:\Users\gcont\OneDrive\Documentos\GitHub\Classificador_IA\database\Lei 214 NCMs - CBSs .xlsx")
-        cst_cclass_excel = Path(r"C:\Users\gcont\OneDrive\Documentos\GitHub\Classificador_IA\database\CST_cclass.xlsx")
+        base_dir = Path(__file__).resolve().parents[1]
+        database_dir = base_dir / "database"
+        lei_complementar = database_dir / "Lei 214 NCMs - CBSs .xlsx"
+        cst_cclass_excel = database_dir / "CST_cclass.xlsx"
         lei_df = extract_data_excel(lei_complementar)
         cst_cclass_excel_df = extract_data_excel(cst_cclass_excel)
         _ = lei_df
