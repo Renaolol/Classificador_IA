@@ -13,13 +13,14 @@ require_login()
 load_dotenv()
 base_dir = Path(__file__).resolve().parents[1]
 database_dir = base_dir / "database"
-modelo = database_dir / "Lei 214 NCMs - CBSs .xlsx"
-st.download_button(
-    label="Baixar planilha Modelo Excel",
-    data=modelo,
-    file_name="modelo.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-)
+modelo_path = database_dir / "Planilha Modelo.xlsx"
+if modelo_path.exists():
+    st.download_button(
+        label="Baixar planilha modelo (Excel)",
+        data=modelo_path.read_bytes(),
+        file_name="modelo.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 empresa_id = st.session_state.get("empresa_codigo")
 if not empresa_id:
     st.error("Não foi possível identificar sua empresa. Faça login novamente.")
