@@ -57,7 +57,7 @@ def render_status(status: dict) -> None:
 render_status(status_plano)
 
 if status_plano.get("pendencias"):
-    st.warning("Você possui créditos pendentes aguardando pagamento. Use a tela de planos para registrar o pagamento.")
+    st.warning("Você possui créditos pendentes aguardando pagamento.")
 
 if status_plano["restantes"] <= 0:
     st.error("Seu saldo de itens acabou. Recarregue o plano ou adicione limite extra na tela de planos.")
