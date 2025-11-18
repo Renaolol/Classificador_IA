@@ -77,12 +77,12 @@ else:
 plano_atual_nome = (status_plano.get("plano") or "").strip()
 is_free_plan = plano_atual_nome.lower() == "plano free"
 
-st.divider()
-st.subheader("Gerar créditos")
-
 if is_free_plan:
-    st.info("Clientes do Plano Free não podem solicitar novos créditos. Requisite uma troca de plano abaixo.")
+    st.divider()
+    st.info("Clientes do Plano Free não têm acesso à geração de créditos. Solicite uma troca de plano para expandir o limite.")
 else:
+    st.divider()
+    st.subheader("Gerar créditos")
     preco_plano = PLAN_PRICES.get(status_plano["plano"])
     if st.button(
         f"Recarregar plano (+{status_plano['limite']} itens)",
