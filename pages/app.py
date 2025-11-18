@@ -7,7 +7,13 @@ from dotenv import load_dotenv
 import streamlit as st
 from io import BytesIO
 
-st.set_page_config("Classificador",layout="wide")
+from config_pag import set_background, get_logo, get_ico
+
+st.set_page_config(layout="wide", page_icon=get_ico())
+
+get_logo()
+set_background()
+
 st.title("Classificador Tributário de Produtos - Gcont")
 require_login()
 load_dotenv()
