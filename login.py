@@ -10,10 +10,10 @@ from dependencies import (
 from validate_docbr import CNPJ, CPF
 from config_pag import set_background, get_logo, get_ico
 
-#st.set_page_config(layout="wide", page_icon=get_ico())
+st.set_page_config(layout="wide", page_icon=get_ico())
 
-#get_logo()
-#set_background()
+get_logo()
+set_background()
 COOKIE_EXPIRY_DAYS = 30
 
 def main():

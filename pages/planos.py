@@ -8,6 +8,7 @@ from dependencies import (
     listar_creditos_limite,
     confirmar_pagamento_credito,
 )
+from config_pag import set_background, get_logo, get_ico
 PLAN_PRICES = {
     "Plano Free": Decimal("0.00"),
     "Starter 5K": Decimal("199.90"),
@@ -18,7 +19,12 @@ PLAN_PRICES = {
 }
 EXTRA_PRICE = Decimal("0.20")
 
-st.set_page_config(layout="wide")
+
+
+st.set_page_config(layout="wide", page_icon=get_ico())
+
+get_logo()
+set_background()
 require_login()
 
 empresa_id = st.session_state.get("empresa_codigo")
