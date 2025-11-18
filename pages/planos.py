@@ -67,7 +67,11 @@ else:
             f"{credito['tipo'].capitalize()} — {credito['quantidade']} itens — "
             f"R$ {credito['valor_total']:,.2f}"
         ):
-            st.write(f"Criado em: {credito['criado_em']:%d/%m/%Y %H:%M}")
+            criado_em = credito.get("criado_em")
+            if criado_em:
+                st.write(f"Criado em: {criado_em:%d/%m/%Y %H:%M}")
+            else:
+                st.write("Criado em: —")
             if credito.get("descricao"):
                 st.write(f"Descrição: {credito['descricao']}")
 
