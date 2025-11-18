@@ -63,7 +63,7 @@ else:
                     )
                 else:
                     st.error("Não foi possível confirmar o pagamento.")
-                st.experimental_rerun()
+                st.rerun()
 
 st.divider()
 st.subheader("Empresas cadastradas")
@@ -89,7 +89,7 @@ else:
                 key=f"toggle_{empresa['id']}",
             ):
                 atualizar_status_empresa(empresa["id"], not empresa["ativo"])
-                st.experimental_rerun()
+                st.rerun()
 
 st.divider()
 st.subheader("Planos cadastrados")
