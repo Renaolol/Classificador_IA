@@ -461,14 +461,14 @@ def criar_credito_limite(
         cursor.execute(
             """
             INSERT INTO public.creditos_limite (
-                id, empresa_id, tipo, quantidade, valor_total, descricao
+                id, empresa_id, tipo, quantidade, valor_total, pago, descricao
             )
             VALUES (
-                %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s
             )
             RETURNING id
             """,
-            (new_id, empresa_id, tipo, quantidade, valor_total, descricao),
+            (new_id, empresa_id, tipo, quantidade, valor_total, False, descricao),
         )
         credito_id = cursor.fetchone()[0]
         conn.commit()
@@ -484,13 +484,20 @@ def listar_creditos_limite(empresa_id: int, somente_pendentes: bool = True) -> L
     conn = conectar_bd()
     cursor = conn.cursor()
     query = """
-        SELECT id, tipo, quantidade, valor_total, pago, criado_em, descricao
+        SELECT
+            id,
+            tipo,
+            quantidade,
+            valor_total,
+            COALESCE(pago::boolean, FALSE) AS pago,
+            criado_em,
+            descricao
         FROM public.creditos_limite
         WHERE empresa_id = %s
     """
     params = [empresa_id]
     if somente_pendentes:
-        query += " AND pago::boolean = FALSE"
+        query += " AND COALESCE(pago::boolean, FALSE) = FALSE"
     query += " ORDER BY criado_em DESC"
     cursor.execute(query, params)
     rows = cursor.fetchall()
@@ -502,7 +509,7 @@ def listar_creditos_limite(empresa_id: int, somente_pendentes: bool = True) -> L
             "tipo": row[1],
             "quantidade": row[2],
             "valor_total": row[3],
-            "pago": row[4],
+            "pago": bool(row[4]),
             "criado_em": row[5],
             "descricao": row[6],
         }
@@ -517,7 +524,8 @@ def confirmar_pagamento_credito(empresa_id: int, credito_id: int) -> Optional[in
             """
             UPDATE public.creditos_limite
             SET pago = TRUE
-            WHERE id = %s AND empresa_id = %s AND pago::boolean = FALSE
+            WHERE id = %s AND empresa_id = %s
+              AND COALESCE(pago::boolean, FALSE) = FALSE
             RETURNING quantidade
             """,
             (credito_id, empresa_id),
@@ -623,7 +631,7 @@ def listar_creditos_pendentes_admin() -> List[dict]:
             c.descricao
         FROM public.creditos_limite c
         JOIN public.cadastro_empresas e ON e.id = c.empresa_id
-        WHERE c.pago::boolean = FALSE
+        WHERE COALESCE(c.pago::boolean, FALSE) = FALSE
         ORDER BY c.criado_em DESC
         """
     )
