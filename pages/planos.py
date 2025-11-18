@@ -70,15 +70,6 @@ else:
             st.write(f"Criado em: {credito['criado_em']:%d/%m/%Y %H:%M}")
             if credito.get("descricao"):
                 st.write(f"Descrição: {credito['descricao']}")
-            if st.button("Registrar pagamento", key=f"pay_{credito['id']}"):
-                quantidade = confirmar_pagamento_credito(empresa_id, credito["id"])
-                if quantidade:
-                    st.session_state["limite_success"] = (
-                        f"Pagamento confirmado! {quantidade} itens liberados para uso."
-                    )
-                else:
-                    st.session_state["limite_error"] = "Não foi possível registrar o pagamento."
-                st.rerun()
 
 st.divider()
 st.subheader("Gerar créditos")
