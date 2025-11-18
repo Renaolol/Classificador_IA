@@ -561,6 +561,9 @@ def listar_empresas_detalhes() -> List[dict]:
     conn.close()
     empresas = []
     for row in rows:
+        limite = row[8] if row[8] is not None else 0
+        usados = int(row[9]) if row[9] is not None else 0
+        restantes = int(row[10]) if row[10] is not None else 0
         empresas.append(
             {
                 "id": row[0],
@@ -571,9 +574,9 @@ def listar_empresas_detalhes() -> List[dict]:
                 "email": row[5],
                 "ativo": row[6],
                 "plano": row[7],
-                "limite": row[8],
-                "usados": row[9],
-                "restantes": row[10],
+                "limite": int(limite) if limite is not None else 0,
+                "usados": usados,
+                "restantes": restantes,
             }
         )
     return empresas
