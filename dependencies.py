@@ -532,3 +532,107 @@ def confirmar_pagamento_credito(empresa_id: int, credito_id: int) -> Optional[in
     finally:
         cursor.close()
         conn.close()
+
+def listar_empresas_detalhes() -> List[dict]:
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT
+            e.id,
+            e.nome_empresa,
+            e.username,
+            e.cnpj,
+            e.responsavel,
+            e.e_mail,
+            COALESCE(e.ativo::boolean, FALSE) AS ativo,
+            p.nome AS plano_nome,
+            p.limite_itens,
+            COALESCE(cp.classificados::numeric, 0) AS usados,
+            GREATEST(p.limite_itens - COALESCE(cp.classificados::numeric, 0), 0) AS restantes
+        FROM public.cadastro_empresas e
+        LEFT JOIN public.planos p ON p.id = e.plano_id
+        LEFT JOIN public.consumo_planos cp ON cp.empresa_id = e.id
+        ORDER BY e.nome_empresa
+        """
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    empresas = []
+    for row in rows:
+        empresas.append(
+            {
+                "id": row[0],
+                "nome": row[1],
+                "username": row[2],
+                "cnpj": row[3],
+                "responsavel": row[4],
+                "email": row[5],
+                "ativo": row[6],
+                "plano": row[7],
+                "limite": row[8],
+                "usados": row[9],
+                "restantes": row[10],
+            }
+        )
+    return empresas
+
+def atualizar_status_empresa(empresa_id: int, ativo: bool) -> bool:
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            UPDATE public.cadastro_empresas
+            SET ativo = %s
+            WHERE id = %s
+            """,
+            (ativo, empresa_id),
+        )
+        sucesso = cursor.rowcount > 0
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+    return sucesso
+
+def listar_creditos_pendentes_admin() -> List[dict]:
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT
+            c.id,
+            c.empresa_id,
+            e.nome_empresa,
+            c.tipo,
+            c.quantidade,
+            c.valor_total,
+            c.criado_em,
+            c.descricao
+        FROM public.creditos_limite c
+        JOIN public.cadastro_empresas e ON e.id = c.empresa_id
+        WHERE c.pago::boolean = FALSE
+        ORDER BY c.criado_em DESC
+        """
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [
+        {
+            "id": row[0],
+            "empresa_id": row[1],
+            "empresa": row[2],
+            "tipo": row[3],
+            "quantidade": row[4],
+            "valor_total": row[5],
+            "criado_em": row[6],
+            "descricao": row[7],
+        }
+        for row in rows
+    ]
