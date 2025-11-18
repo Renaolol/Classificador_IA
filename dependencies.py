@@ -321,7 +321,7 @@ def criar_empresa(
                 nome_empresa, cnpj, e_mail, responsavel, cpf_responsavel,
                 username, senha, plano_id, ativo
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
