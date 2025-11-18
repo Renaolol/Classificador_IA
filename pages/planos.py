@@ -6,7 +6,6 @@ from dependencies import (
     obter_status_plano,
     criar_credito_limite,
     listar_creditos_limite,
-    confirmar_pagamento_credito,
 )
 from config_pag import set_background, get_logo, get_ico
 PLAN_PRICES = {
@@ -75,57 +74,94 @@ else:
             if credito.get("descricao"):
                 st.write(f"Descrição: {credito['descricao']}")
 
+plano_atual_nome = (status_plano.get("plano") or "").strip()
+is_free_plan = plano_atual_nome.lower() == "plano free"
+
 st.divider()
 st.subheader("Gerar créditos")
 
-preco_plano = PLAN_PRICES.get(status_plano["plano"])
-if st.button(
-    f"Recarregar plano (+{status_plano['limite']} itens)",
-    use_container_width=True,
-):
-    if preco_plano is None:
-        st.session_state["limite_error"] = "Defina o preço do plano antes de recarregar."
-    else:
-        descricao = f"Recarregar plano {status_plano['plano']}"
+if is_free_plan:
+    st.info("Clientes do Plano Free não podem solicitar novos créditos. Requisite uma troca de plano abaixo.")
+else:
+    preco_plano = PLAN_PRICES.get(status_plano["plano"])
+    if st.button(
+        f"Recarregar plano (+{status_plano['limite']} itens)",
+        use_container_width=True,
+    ):
+        if preco_plano is None:
+            st.session_state["limite_error"] = "Defina o preço do plano antes de recarregar."
+        else:
+            descricao = f"Recarregar plano {status_plano['plano']}"
+            criar_credito_limite(
+                empresa_id,
+                status_plano["limite"],
+                "pacote",
+                float(preco_plano),
+                descricao,
+            )
+            st.session_state["limite_success"] = (
+                "Crédito criado! Efetue o pagamento e registre acima para liberar o saldo."
+            )
+        st.rerun()
+
+    st.caption("Limite extra custa R$ 0,20 por item liberado.")
+    quantidade_extra = st.number_input(
+        "Quantidade extra desejada",
+        min_value=100,
+        step=100,
+        value=1000,
+        help="Informe o volume que deseja adicionar ao saldo disponível.",
+    )
+    if st.button(f"Gerar crédito de +{quantidade_extra:,.0f} itens", use_container_width=True):
+        valor_total = Decimal(quantidade_extra) * EXTRA_PRICE
+        descricao = f"Limite extra de {quantidade_extra} itens"
         criar_credito_limite(
             empresa_id,
-            status_plano["limite"],
-            "pacote",
-            float(preco_plano),
+            int(quantidade_extra),
+            "extra",
+            float(valor_total),
             descricao,
         )
         st.session_state["limite_success"] = (
-            "Crédito criado! Efetue o pagamento e registre acima para liberar o saldo."
+            "Crédito extra registrado! Assim que o pagamento for confirmado, o saldo será liberado."
         )
-    st.rerun()
+        st.rerun()
 
-st.caption("Limite extra custa R$ 0,20 por item liberado.")
-quantidade_extra = st.number_input(
-    "Quantidade extra desejada",
-    min_value=100,
-    step=100,
-    value=1000,
-    help="Informe o volume que deseja adicionar ao saldo disponível.",
-)
-if st.button(f"Gerar crédito de +{quantidade_extra:,.0f} itens", use_container_width=True):
-    valor_total = Decimal(quantidade_extra) * EXTRA_PRICE
-    descricao = f"Limite extra de {quantidade_extra} itens"
-    criar_credito_limite(
-        empresa_id,
-        int(quantidade_extra),
-        "extra",
-        float(valor_total),
-        descricao,
+planos = listar_planos()
+
+st.divider()
+st.subheader("Solicitar mudança de plano")
+outros_planos = [plano for plano in planos if plano["nome"] != status_plano["plano"]]
+if not outros_planos:
+    st.caption("Não há outros planos disponíveis para troca no momento.")
+else:
+    novo_plano_nome = st.selectbox(
+        "Escolha o novo plano desejado",
+        [plano["nome"] for plano in outros_planos],
     )
-    st.session_state["limite_success"] = (
-        "Crédito extra registrado! Assim que o pagamento for confirmado, o saldo será liberado."
+    justificativa = st.text_area(
+        "Observações (opcional)",
+        help="Informe detalhes sobre a necessidade da troca de plano.",
     )
-    st.rerun()
+    if st.button("Enviar solicitação de mudança", use_container_width=True):
+        descricao = f"Solicitação de mudança para o plano {novo_plano_nome}"
+        texto = justificativa.strip()
+        if texto:
+            descricao += f" — Observações: {texto}"
+        criar_credito_limite(
+            empresa_id,
+            0,
+            "mudanca",
+            0.0,
+            descricao,
+        )
+        st.session_state["limite_success"] = (
+            "Solicitação registrada! A equipe Gcont entrará em contato para concluir a troca."
+        )
+        st.rerun()
 
 st.divider()
 st.subheader("Planos disponíveis")
-
-planos = listar_planos()
 
 if not planos:
     st.warning("Nenhum plano cadastrado. Fale com o suporte para configurar opções.")

@@ -309,6 +309,7 @@ def criar_empresa(
     username: str,
     senha: str,
     plano_id: int,
+    ativo_inicial: bool = False,
 ) -> Optional[int]:
     hashed_password = _hash_password(senha)
     conn = conectar_bd()
@@ -318,7 +319,7 @@ def criar_empresa(
             """
             INSERT INTO public.cadastro_empresas (
                 nome_empresa, cnpj, e_mail, responsavel, cpf_responsavel,
-                username, senha, plano_id
+                username, senha, plano_id, ativo
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
@@ -332,6 +333,7 @@ def criar_empresa(
                 username,
                 hashed_password,
                 plano_id,
+                ativo_inicial,
             ),
         )
         empresa_id = cursor.fetchone()[0]

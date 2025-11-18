@@ -99,10 +99,13 @@ def render_cadastro():
         st.error("Nenhum plano disponível no momento. Contate o suporte para concluir o cadastro.")
         return
 
-    planos_opcoes = {
-        f"{plano['nome']} — até {plano['limite']} itens": plano["id"]
-        for plano in planos
-    }
+    planos_opcoes = {}
+    for plano in planos:
+        label = f"{plano['nome']} — até {plano['limite']} itens"
+        planos_opcoes[label] = {
+            "id": plano["id"],
+            "nome": plano["nome"],
+        }
 
     with st.form("cadastro_form"):
         nome_empresa = st.text_input("Nome da empresa")
@@ -159,6 +162,10 @@ def render_cadastro():
         return
 
     try:
+        plano_escolhido = planos_opcoes[plano_label]
+        plano_nome = (plano_escolhido["nome"] or "").strip().lower()
+        ativo_inicial = plano_nome == "plano free"
+
         criar_empresa(
             nome_empresa,
             cnpj,
@@ -167,7 +174,8 @@ def render_cadastro():
             cpf_responsavel,
             username,
             senha,
-            planos_opcoes[plano_label],
+            plano_escolhido["id"],
+            ativo_inicial=ativo_inicial,
         )
     except Exception as exc:
         st.error(f"Não foi possível concluir o cadastro: {exc}")
