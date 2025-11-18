@@ -75,7 +75,7 @@ else:
                 st.write(f"Descrição: {credito['descricao']}")
 
 plano_atual_nome = (status_plano.get("plano") or "").strip()
-is_free_plan = plano_atual_nome.lower() == "plano free"
+is_free_plan = plano_atual_nome.lower() == "free"
 
 if is_free_plan:
     st.divider()
