@@ -37,6 +37,13 @@ if not status_plano:
     st.error("Plano não configurado. Contate o suporte.")
     st.stop()
 
+if not status_plano.get("ativo", True):
+    st.warning(
+        "Seu acesso ainda não foi liberado. Entre em contato com a Gcont ou "
+        "verifique a tela de Planos para confirmar pendências."
+    )
+    st.stop()
+
 status_placeholder = st.empty()
 progress_placeholder = st.empty()
 

@@ -363,7 +363,11 @@ def obter_status_plano(empresa_id: int) -> Optional[dict]:
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT p.nome, p.limite_itens, COALESCE(c.classificados::numeric, 0) AS usados
+        SELECT
+            p.nome,
+            p.limite_itens,
+            COALESCE(c.classificados::numeric, 0) AS usados,
+            COALESCE(e.ativo::boolean, FALSE) AS ativo
         FROM public.cadastro_empresas e
         JOIN public.planos p ON p.id = e.plano_id
         LEFT JOIN public.consumo_planos c ON c.empresa_id = e.id
@@ -376,13 +380,14 @@ def obter_status_plano(empresa_id: int) -> Optional[dict]:
     conn.close()
     if not row:
         return None
-    nome, limite, usados = row
+    nome, limite, usados, ativo = row
     pendencias = listar_creditos_limite(empresa_id, somente_pendentes=True)
     return {
         "plano": nome,
         "limite": int(limite),
         "usados": int(usados),
         "restantes": max(int(limite) - int(usados), 0),
+        "ativo": bool(ativo),
         "pendencias": pendencias,
     }
 
