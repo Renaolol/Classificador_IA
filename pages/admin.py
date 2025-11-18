@@ -8,6 +8,11 @@ from dependencies import (
     listar_planos,
 )
 
+def _descricao_visivel(descricao: str) -> str:
+    if not descricao:
+        return ""
+    return descricao.split("##PLANO_ID=")[0].strip()
+
 # Defina aqui os usernames autorizados a acessar o painel administrativo.
 ADMIN_USERS = {"admin","teste"}
 
@@ -50,8 +55,9 @@ else:
                 st.write(f"Criado em: {criado_em:%d/%m/%Y %H:%M}")
             else:
                 st.write("Criado em: —")
-            if credito.get("descricao"):
-                st.write(f"Descrição: {credito['descricao']}")
+            descricao_visivel = _descricao_visivel(credito.get("descricao") or "")
+            if descricao_visivel:
+                st.write(f"Descrição: {descricao_visivel}")
             if st.button(
                 "Confirmar pagamento",
                 key=f"confirm_credit_{credito['id']}",
@@ -60,13 +66,17 @@ else:
                     credito["empresa_id"],
                     credito["id"],
                 )
-                if quantidade:
+                if quantidade is None:
+                    st.error("Não foi possível confirmar o pagamento.")
+                elif credito["tipo"] == "mudanca":
+                    st.success(
+                        f"Plano de {credito['empresa']} atualizado conforme solicitação."
+                    )
+                else:
                     st.success(
                         f"Pagamento confirmado. {quantidade} itens liberados para "
                         f"{credito['empresa']}."
                     )
-                else:
-                    st.error("Não foi possível confirmar o pagamento.")
                 st.rerun()
 
 st.divider()

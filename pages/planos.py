@@ -8,6 +8,11 @@ from dependencies import (
     listar_creditos_limite,
 )
 from config_pag import set_background, get_logo, get_ico
+
+def _descricao_visivel(descricao: str) -> str:
+    if not descricao:
+        return ""
+    return descricao.split("##PLANO_ID=")[0].strip()
 PLAN_PRICES = {
     "Plano Free": Decimal("0.00"),
     "Starter 5K": Decimal("199.90"),
@@ -71,8 +76,9 @@ else:
                 st.write(f"Criado em: {criado_em:%d/%m/%Y %H:%M}")
             else:
                 st.write("Criado em: —")
-            if credito.get("descricao"):
-                st.write(f"Descrição: {credito['descricao']}")
+            descricao_visivel = _descricao_visivel(credito.get("descricao") or "")
+            if descricao_visivel:
+                st.write(f"Descrição: {descricao_visivel}")
 
 plano_atual_nome = (status_plano.get("plano") or "").strip()
 is_free_plan = plano_atual_nome.lower() == "free"
@@ -144,10 +150,18 @@ else:
         help="Informe detalhes sobre a necessidade da troca de plano.",
     )
     if st.button("Enviar solicitação de mudança", use_container_width=True):
+        novo_plano = next(
+            (plano for plano in planos if plano["nome"] == novo_plano_nome),
+            None,
+        )
+        if not novo_plano:
+            st.error("Não foi possível identificar o plano selecionado.")
+            st.stop()
         descricao = f"Solicitação de mudança para o plano {novo_plano_nome}"
         texto = justificativa.strip()
         if texto:
             descricao += f" — Observações: {texto}"
+        descricao = f"{descricao} ##PLANO_ID={novo_plano['id']}"
         criar_credito_limite(
             empresa_id,
             0,

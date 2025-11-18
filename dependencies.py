@@ -523,6 +523,23 @@ def listar_creditos_limite(empresa_id: int, somente_pendentes: bool = True) -> L
         for row in rows
     ]
 
+def _extract_plan_id_from_description(descricao: Optional[str]) -> Optional[int]:
+    if not descricao:
+        return None
+    marker = "##PLANO_ID="
+    if marker not in descricao:
+        return None
+    tail = descricao.split(marker, 1)[1].strip()
+    digits = []
+    for ch in tail:
+        if ch.isdigit():
+            digits.append(ch)
+        else:
+            break
+    if not digits:
+        return None
+    return int("".join(digits))
+
 def confirmar_pagamento_credito(empresa_id: int, credito_id: int) -> Optional[int]:
     conn = conectar_bd()
     cursor = conn.cursor()
@@ -533,7 +550,7 @@ def confirmar_pagamento_credito(empresa_id: int, credito_id: int) -> Optional[in
             SET pago = TRUE
             WHERE id = %s AND empresa_id = %s
               AND COALESCE(pago::boolean, FALSE) = FALSE
-            RETURNING quantidade
+            RETURNING tipo, quantidade, descricao
             """,
             (credito_id, empresa_id),
         )
@@ -541,8 +558,13 @@ def confirmar_pagamento_credito(empresa_id: int, credito_id: int) -> Optional[in
         if not row:
             conn.rollback()
             return None
-        quantidade = row[0]
-        adicionar_limite_extra(empresa_id, quantidade)
+        tipo, quantidade, descricao = row
+        if tipo == "mudanca":
+            novo_plano_id = _extract_plan_id_from_description(descricao)
+            if novo_plano_id:
+                atualizar_plano_empresa(empresa_id, novo_plano_id)
+        else:
+            adicionar_limite_extra(empresa_id, quantidade)
         conn.commit()
         return quantidade
     except Exception:
@@ -599,6 +621,28 @@ def listar_empresas_detalhes() -> List[dict]:
             }
         )
     return empresas
+
+def atualizar_plano_empresa(empresa_id: int, novo_plano_id: int) -> bool:
+    conn = conectar_bd()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            UPDATE public.cadastro_empresas
+            SET plano_id = %s
+            WHERE id = %s
+            """,
+            (novo_plano_id, empresa_id),
+        )
+        sucesso = cursor.rowcount > 0
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+    return sucesso
 
 def atualizar_status_empresa(empresa_id: int, ativo: bool) -> bool:
     conn = conectar_bd()
