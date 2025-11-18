@@ -455,16 +455,20 @@ def criar_credito_limite(
     cursor = conn.cursor()
     try:
         cursor.execute(
+            "SELECT COALESCE(MAX(id), 0) + 1 FROM public.creditos_limite"
+        )
+        new_id = cursor.fetchone()[0]
+        cursor.execute(
             """
             INSERT INTO public.creditos_limite (
-                empresa_id, tipo, quantidade, valor_total, descricao
+                id, empresa_id, tipo, quantidade, valor_total, descricao
             )
             VALUES (
-                %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s
             )
             RETURNING id
             """,
-            (empresa_id, tipo, quantidade, valor_total, descricao),
+            (new_id, empresa_id, tipo, quantidade, valor_total, descricao),
         )
         credito_id = cursor.fetchone()[0]
         conn.commit()
