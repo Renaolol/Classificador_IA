@@ -15,11 +15,12 @@ def _descricao_visivel(descricao: str) -> str:
     return descricao.split("##PLANO_ID=")[0].strip()
 PLAN_PRICES = {
     "Free": Decimal("0.00"),
-    "Starter 5K": Decimal("89.50"),
-    "Growth 15K": Decimal("268.50"),
-    "Pro 30K": Decimal("537.00"),
-    "Elite 60K": Decimal("1074.00"),
-    "Enterprise Flex": Decimal("1790.00"),
+    "Starter": Decimal("150.00"),
+    "Plus": Decimal("250.00"),
+    "Growth": Decimal("300.00"),
+    "Pro": Decimal("320.00"),
+    "Elite": Decimal("465.00"),
+    "Enterprise": Decimal("608.00"),
 }
 EXTRA_PRICE = Decimal("0.20")
 
