@@ -78,7 +78,7 @@ def normalize_ncm(series: pd.Series, length: int = 8) -> pd.Series:
 
     return series.apply(_clean_value)
 
-def _parse_required_keywords(value: object) -> List[str]:
+def _parse_keywords(value: object) -> List[str]:
     if not isinstance(value, str):
         return []
     return [token.strip().lower() for token in value.split(";") if token.strip()]
@@ -99,15 +99,22 @@ def build_cst_prefixes(cst_df: pd.DataFrame) -> pd.DataFrame:
 
     exploded = exploded[exploded["ncm_prefix"] != ""].copy()
     exploded["prefix_len"] = exploded["ncm_prefix"].str.len()
-    exploded["required_keywords_list"] = exploded["required_keywords"].apply(_parse_required_keywords)
+    exploded["required_keywords_list"] = exploded.get("required_keywords", pd.Series([""] * len(exploded))).apply(_parse_keywords)
+    exploded["excluded_keywords_list"] = exploded.get("excluded_keywords", pd.Series([""] * len(exploded))).apply(_parse_keywords)
     return exploded
 
-def _keyword_match(description: str, keywords: List[str]) -> bool:
-    if not keywords:
-        return True
-    if not isinstance(description, str) or not description:
+def _keyword_match(description: str, required: List[str], excluded: List[str]) -> bool:
+    if not isinstance(description, str):
+        description = ""
+    description = description.lower()
+
+    if required and not any(token in description for token in required):
         return False
-    return any(token in description for token in keywords)
+
+    if excluded and any(token in description for token in excluded):
+        return False
+
+    return True
 
 def _apply_fallback(df: pd.DataFrame, fallback_row: Optional[pd.Series]) -> pd.DataFrame:
     if fallback_row is None or df.empty:
@@ -196,8 +203,19 @@ def merge_by_prefix(
             lambda value: value if isinstance(value, list) else []
         )
 
+    if "excluded_keywords_list" not in merged.columns:
+        merged["excluded_keywords_list"] = [[] for _ in range(len(merged))]
+    else:
+        merged["excluded_keywords_list"] = merged["excluded_keywords_list"].apply(
+            lambda value: value if isinstance(value, list) else []
+        )
+
     merged["keyword_ok"] = merged.apply(
-        lambda row: _keyword_match(row.get("_description", ""), row.get("required_keywords_list", [])),
+        lambda row: _keyword_match(
+            row.get("_description", ""),
+            row.get("required_keywords_list", []),
+            row.get("excluded_keywords_list", []),
+        ),
         axis=1,
     )
 
