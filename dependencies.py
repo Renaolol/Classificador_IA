@@ -8,6 +8,9 @@ from pprint import pprint
 from dotenv import load_dotenv
 import json
 from typing import List, Optional
+import math
+import numbers
+import re
 import psycopg2
 import streamlit as st
 from time import sleep
@@ -43,15 +46,37 @@ def _hash_password(password: str) -> str:
     raise RuntimeError("Hasher não está disponível na versão atual do streamlit_authenticator.")
 
 def normalize_ncm(series: pd.Series, length: int = 8) -> pd.Series:
-    """Keep only digits and left-pad with zeros."""
-    clean = (
-        series.fillna("")
-        .astype(str)
-        .str.replace(r"\D", "", regex=True)
-        .str.strip()
-    )
-    clean = clean.replace("", pd.NA)
-    return clean.str.zfill(length)
+    """Keep only digits, left-pad, and clamp to the desired length."""
+
+    def _clean_value(value) -> Optional[str]:
+        if pd.isna(value):
+            return pd.NA
+        if isinstance(value, bool):
+            return pd.NA
+
+        digits: str
+        if isinstance(value, numbers.Integral):
+            digits = f"{int(value)}"
+        elif isinstance(value, numbers.Real):
+            if math.isnan(value) or math.isinf(value):
+                return pd.NA
+            if float(value).is_integer():
+                digits = f"{int(value)}"
+            else:
+                digits = re.sub(r"\D", "", str(value))
+        else:
+            digits = re.sub(r"\D", "", str(value))
+
+        digits = digits.strip()
+        if not digits:
+            return pd.NA
+
+        # NCM deve ter 8 dígitos; descarta sobra e preenche zeros à esquerda.
+        if len(digits) > length:
+            digits = digits[:length]
+        return digits.zfill(length)
+
+    return series.apply(_clean_value)
 
 def _parse_required_keywords(value: object) -> List[str]:
     if not isinstance(value, str):
