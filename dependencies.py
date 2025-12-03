@@ -83,11 +83,38 @@ def _parse_keywords(value: object) -> List[str]:
         return []
     return [token.strip().lower() for token in value.split(";") if token.strip()]
 
+def _parse_keywords_by_ncm(value: object) -> dict:
+    """Mapear NCM/prefixo para lista de palavras permitidas (formato NCM[pal1;pal2])."""
+    if not isinstance(value, str):
+        return {}
+
+    mapping = {}
+    for match in re.finditer(r"(\d{2,8})\s*\[([^\]]+)\]", value):
+        raw_key, words = match.groups()
+        key = re.sub(r"\D", "", raw_key).strip()
+        if not key:
+            continue
+        tokens = _parse_keywords(words)
+        if tokens:
+            mapping[key] = tokens
+    return mapping
+
 def build_cst_prefixes(cst_df: pd.DataFrame) -> pd.DataFrame:
     """Explode allowed_ncmlist into normalized prefixes."""
+    base = cst_df.copy()
+    base["required_keywords_map"] = (
+        base.get("required_keywords", pd.Series([""] * len(base))).apply(_parse_keywords_by_ncm)
+    )
+    base["general_required_keywords_list"] = (
+        base.get("required_keywords", pd.Series([""] * len(base))).apply(_parse_keywords)
+    )
+    base["excluded_keywords_list"] = (
+        base.get("excluded_keywords", pd.Series([""] * len(base))).apply(_parse_keywords)
+    )
+
     exploded = (
-        cst_df.copy()
-        .assign(ncm_prefix=cst_df["allowed_ncmlist"].fillna("").astype(str).str.split(";"))
+        base
+        .assign(ncm_prefix=base["allowed_ncmlist"].fillna("").astype(str).str.split(";"))
         .explode("ncm_prefix", ignore_index=True)
     )
 
@@ -99,8 +126,6 @@ def build_cst_prefixes(cst_df: pd.DataFrame) -> pd.DataFrame:
 
     exploded = exploded[exploded["ncm_prefix"] != ""].copy()
     exploded["prefix_len"] = exploded["ncm_prefix"].str.len()
-    exploded["required_keywords_list"] = exploded.get("required_keywords", pd.Series([""] * len(exploded))).apply(_parse_keywords)
-    exploded["excluded_keywords_list"] = exploded.get("excluded_keywords", pd.Series([""] * len(exploded))).apply(_parse_keywords)
     return exploded
 
 def _keyword_match(description: str, required: List[str], excluded: List[str]) -> bool:
@@ -194,13 +219,20 @@ def merge_by_prefix(
     else:
         merged["_description"] = ""
 
-    merged["_description"] = merged["_description"].fillna("").astype(str).str.lower()
+        merged["_description"] = merged["_description"].fillna("").astype(str).str.lower()
 
-    if "required_keywords_list" not in merged.columns:
-        merged["required_keywords_list"] = [[] for _ in range(len(merged))]
+    if "required_keywords_map" not in merged.columns:
+        merged["required_keywords_map"] = [{} for _ in range(len(merged))]
     else:
-        merged["required_keywords_list"] = merged["required_keywords_list"].apply(
-            lambda value: value if isinstance(value, list) else []
+        merged["required_keywords_map"] = merged["required_keywords_map"].apply(
+            lambda value: value if isinstance(value, dict) else {}
+        )
+
+    if "general_required_keywords_list" not in merged.columns:
+        merged["general_required_keywords_list"] = [[] for _ in range(len(merged))]
+    else:
+        merged["general_required_keywords_list"] = merged["general_required_keywords_list"].apply(
+            lambda value: value if isinstance(value, list) else _parse_keywords(value)
         )
 
     if "excluded_keywords_list" not in merged.columns:
@@ -209,6 +241,21 @@ def merge_by_prefix(
         merged["excluded_keywords_list"] = merged["excluded_keywords_list"].apply(
             lambda value: value if isinstance(value, list) else []
         )
+
+    def _required_for_row(row: pd.Series) -> List[str]:
+        ncm = row.get("NCM", "")
+        if pd.isna(ncm):
+            ncm = ""
+        ncm_digits = re.sub(r"\D", "", str(ncm))
+        mapping = row.get("required_keywords_map", {}) or {}
+        if isinstance(mapping, dict) and ncm_digits:
+            for key in sorted(mapping.keys(), key=len, reverse=True):
+                if key and ncm_digits.startswith(str(key)):
+                    return mapping[key]
+        fallback = row.get("general_required_keywords_list", [])
+        return fallback if isinstance(fallback, list) else []
+
+    merged["required_keywords_list"] = merged.apply(_required_for_row, axis=1)
 
     merged["keyword_ok"] = merged.apply(
         lambda row: _keyword_match(
